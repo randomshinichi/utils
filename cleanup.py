@@ -1,3 +1,5 @@
+#!/usr/local/bin/python3
+
 from multiprocessing import Pool
 import os
 import re

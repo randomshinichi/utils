@@ -1,3 +1,4 @@
+#!/usr/local/bin/python3
 """
 Usage: python3 scriptname.py (album directory) (cpus to use)
 """
