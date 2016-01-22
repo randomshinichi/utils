@@ -6,10 +6,21 @@ import re
 import subprocess
 import logging
 import pdb
+import argparse
 
 
 def cap(s, l):
     return s if len(s) <= l else s[:l]
+
+
+def build_filelist(path, extensions):
+    filelist = []
+
+    for dirpath, subdirs, files in os.walk(path):
+        for f in files:
+            if os.path.splitext(f)[1].lower() in extensions:
+                filelist.append(os.path.join(dirpath, f))
+    return filelist
 
 
 def ffmpeg(filename):
@@ -47,16 +58,18 @@ def identify(filename):
 
 def finders_deleters():
     finders = [
-        (["find", "-name", "._*", "-print", "-delete"], 'Mac resource forks'),
-        (["find", "-name", ".mediaartlocal", "-print", "-delete"],
+        (["find", os.getcwd(), "-name", "._*", "-print", "-delete"],
+         'Mac resource forks'),
+        (["find", os.getcwd(), "-name", ".mediaartlocal", "-print", "-delete"],
          '.mediaartlocal'),
-        (["find", "-name", "*.url", "-print", "-delete"], 'useless .url files')
+        (["find", os.getcwd(), "-name", "*.url", "-print", "-delete"],
+         'useless .url files')
     ]
 
     for f in finders:
         cmd = f[0]
         message = f[1]
-        if not teeth:
+        if args.pretend:
             message = 'Pretend ' + message
             cmd.pop()
         print(message)
@@ -66,7 +79,7 @@ def finders_deleters():
 
 def lowercase_file_extensions():
     message = 'lowercase file extensions'
-    if not teeth:
+    if args.pretend:
         message = 'Pretend ' + message
     print(message)
 
@@ -77,25 +90,20 @@ def lowercase_file_extensions():
                 file_with_UPPEREXT = os.path.join(dirpath, f)
                 new_filename_lowerext = os.path.join(
                     dirpath, f[:dot_position] + f[dot_position:].lower())
-                if teeth:
+                if args.pretend:
+                    logging.warning(
+                        'Pretend renamed {} to {}'.format(file_with_UPPEREXT, new_filename_lowerext))
+                else:
                     os.rename(file_with_UPPEREXT, new_filename_lowerext)
                     logging.warning(
                         'renamed {} to {}'.format(file_with_UPPEREXT, new_filename_lowerext))
-                else:
-                    logging.warning(
-                        'Pretend renamed {} to {}'.format(file_with_UPPEREXT, new_filename_lowerext))
 
 
 def validate_images():
     print('validating images')
 
     extensions = ('.jpg', '.png', '.bmp', '.tif', '.tiff')
-    filelist = []
-
-    for dirpath, subdirs, files in os.walk(datadir):
-        for f in files:
-            if os.path.splitext(f)[1].lower() in extensions:
-                filelist.append(os.path.join(dirpath, f))
+    filelist = build_filelist(datadir, extensions)
 
     with Pool(8) as pool:
         result = pool.map(identify, filelist)
@@ -112,12 +120,7 @@ def validate_videos():
     print('validating videos in', pictures_path)
 
     extensions = ('.avi', '.mp4', '.mkv')
-    filelist = []
-
-    for dirpath, subdirs, files in os.walk(pictures_path):
-        for f in files:
-            if os.path.splitext(f)[1].lower() in extensions:
-                filelist.append(os.path.join(dirpath, f))
+    filelist = build_filelist(pictures_path, extensions)
 
     problematic_files = []
     for f in filelist:
@@ -128,9 +131,19 @@ def validate_videos():
     for p in problematic_files:
         logging.error('{}\t{}'.format(p[0], cap(p[1], 150) + '...'))
 
-teeth = True  # for finders_deleters() and lowercase_file_extensions()
-datadir = '/data'
-logname = '/data/cleanup.log'
+
+parser = argparse.ArgumentParser(
+    description='Cleans up the given directory and validates images and videos')
+parser.add_argument('-p', '--pretend', action="store_true",
+                    help='Do not actually delete or rename anything. Only affects finders_deleters() and lowercase_file_extensions()')
+parser.add_argument('-v', '--validate', action="store_true",
+                    help='Perform image and video validation as well')
+parser.add_argument(
+    'datadir', help='The directory to clean up. A log will be placed here as well.')
+args = parser.parse_args()
+
+datadir = args.datadir
+logname = os.path.join(datadir, 'cleanup.log')
 
 os.chdir(datadir)
 
@@ -142,6 +155,7 @@ print("working in", datadir)
 
 finders_deleters()
 lowercase_file_extensions()
-validate_images()
-validate_videos()
+if args.validate:
+    validate_images()
+    validate_videos()
 logging.info('ENDED')
