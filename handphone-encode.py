@@ -5,9 +5,9 @@ Usage: python3 scriptname.py (album directory) (cpus to use)
 
 import pdb
 import os
-import sys
 import subprocess
 import glob
+import argparse
 from multiprocessing import Pool
 from shutil import rmtree, copytree, ignore_patterns
 
@@ -21,14 +21,16 @@ def encode(input_filename):
         print("Problem encoding", input_filename)
     return name + '.m4a'
 
-source_dir = os.path.abspath(sys.argv[1])
-album_dir = os.path.split(source_dir)[1]
-try:
-    cpus = int(sys.argv[2])
-except:
-    cpus = 6
+parser = argparse.ArgumentParser(description='Encodes flac files into m4a for smartphones')
+parser.add_argument('source_dir', help='The source music directory with flac files')
+parser.add_argument('output_dir', help='The destination to copy the encoded files to')
+parser.add_argument('--cpus', help='Number of workers/CPUs to use', default=6)
+args = parser.parse_args()
 
-output_dir = '/Users/andrewchiw/staging'
+source_dir = os.path.abspath(args.source_dir)
+album_dir = os.path.split(source_dir)[1]
+
+output_dir = args.output_dir
 output_dir_album = os.path.join(output_dir, album_dir)
 os.chdir(source_dir)
 
@@ -38,7 +40,7 @@ if not filelist:
     filelist = glob.glob('**/*.flac', recursive=True)
 
 filelist_encoded = []
-with Pool(cpus) as pool:
+with Pool(args.cpus) as pool:
     filelist_encoded = pool.map(encode, filelist)
 
 print("Copying encoded files to", output_dir_album)
