@@ -12,10 +12,11 @@ from shutil import rmtree, copytree, ignore_patterns
 def encode(input_filename):
     print("Encoding", input_filename)
     name, ext = os.path.splitext(input_filename)
-    output = subprocess.run(['touch', name + '.m4a'])
-    # output = subprocess.run(['ffmpeg', '-i', input_filename, '-c:a', 'libfaac', '-q:a', '100', name + '.m4a'], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    # output = subprocess.run(['touch', name + '.m4a'])
+    output = subprocess.run(['ffmpeg', '-i', input_filename, '-c:a', 'libfdk_aac', '-vbr', '5', name + '.m4a'], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     if output.returncode != 0:
         print("Problem encoding", input_filename)
+        print(output.stderr.decode())
     return name + '.m4a'
 
 parser = argparse.ArgumentParser(description='Encodes flac files into m4a for smartphones')
